@@ -134,7 +134,7 @@ async def forgot_password(
 
 @router.get("/reset_password/{token}")
 async def reset_password(token: str):
-    RedirectResponse(url=f"/change_password/{token}")
+    return RedirectResponse(url=f"/change_password/{token}")
 
 
 @router.post("/reset_password/{token}")
