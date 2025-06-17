@@ -1,0 +1,20 @@
+from typing import List, Self
+from fastapi import Depends, HTTPException, status, Request
+
+from src.database.models import User, UserRole
+from src.services.auth import auth_service
+
+
+class RoleAccess:
+    def __init__(self: Self, allowed_roles: List[UserRole]):
+        self.allowed_roles = allowed_roles
+
+    async def __call__(
+        self: Self,
+        request: Request,
+        current_user: User = Depends(auth_service.get_current_user),
+    ):
+        if current_user.role not in self.allowed_roles:
+            raise HTTPException(
+                status_code=403, detail="Access denied: insufficient privileges"
+            )

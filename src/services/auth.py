@@ -1,3 +1,5 @@
+import redis
+import pickle
 from typing import Self
 from passlib.context import CryptContext
 from jose import JWTError, jwt
@@ -8,6 +10,9 @@ from sqlalchemy.orm import Session
 from src.conf.config import settings
 from src.services.users import UserService
 from src.database.db import get_db
+from src.database.models import User
+from src.database.models import UserRole
+from src.conf.config import settings
 
 
 class Auth:
@@ -15,6 +20,7 @@ class Auth:
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+    r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
     def verify_password(self: Self, plain_password: str, hashed_password: str):
         return self.pwd_context.verify(plain_password, hashed_password)
@@ -66,7 +72,15 @@ class Auth:
             raise credentials_exception
 
         user_service = UserService(db)
-        user = await user_service.get_user_by_email(email)
+        user = self.r.get(f"user:{email}")
+        if user is None:
+            user = await user_service.get_user_by_email(email)
+            if user is None:
+                raise credentials_exception
+            self.r.set(f"user:{email}", pickle.dumps(user))
+            self.r.expire(f"user:{email}", 900)
+        else:
+            user = pickle.loads(user)
 
         if user is None:
             raise credentials_exception

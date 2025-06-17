@@ -1,6 +1,15 @@
 import logging
-from fastapi import APIRouter, status, BackgroundTasks, Request, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    status,
+    BackgroundTasks,
+    Request,
+    Depends,
+    HTTPException,
+    Form,
+)
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -98,3 +107,51 @@ async def request_email(
             send_email, user.email, user.username, str(request.base_url)
         )
     return {"message": "Check your email for confirmation"}
+
+
+@router.post("/forgot_password")
+async def forgot_password(
+    body: RequestEmail,
+    background_task: BackgroundTasks,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    user_service = UserService(db)
+    user = await user_service.get_user_by_email(body.email)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error"
+        )
+    if not user.confirmed_email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not confirmed"
+        )
+    background_task.add_task(
+        send_email, user.email, user.username, str(request.base_url), True
+    )
+    return {"message": "Check your email for confirmation"}
+
+
+@router.get("/reset_password/{token}")
+async def reset_password(token: str):
+    RedirectResponse(url=f"/change_password/{token}")
+
+
+@router.post("/reset_password/{token}")
+async def post_reset_password(
+    token: str, password: str = Form(...), db: AsyncSession = Depends(get_db)
+):
+    user_service = UserService(db)
+    email = auth_service.get_email_from_token(token)
+    user = await user_service.get_user_by_email(email)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error"
+        )
+    if not user.confirmed_email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not confirmed"
+        )
+    hashed_password = auth_service.get_password_hash(password)
+    await user_service.reset_password(hashed_password, email)
+    return {"message": "Password successfully changed"}

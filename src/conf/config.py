@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     CLOUDINARY_NAME: str
     CLOUDINARY_API_KEY: int
     CLOUDINARY_API_SECRET: str
+    # REDIS
+    REDIS_HOST: str
+    REDIS_PORT: str
     # CONFIG
     model_config = ConfigDict(
         extra="ignore", env_file=".env", env_file_encoding="utf-8", case_sensitive=True

@@ -9,10 +9,14 @@ from src.services.users import UserService
 from src.services.upload_file import UploadFileService
 from src.database.db import get_db
 from src.conf.config import settings
+from src.services.roles import RoleAccess
+from src.database.models import UserRole
 
 
 router = APIRouter(prefix="/users", tags=["Users"])
 limiter = Limiter(key_func=get_remote_address)
+
+allowed_operation_avatar = RoleAccess([UserRole.ADMIN])
 
 
 @router.get(
@@ -27,7 +31,11 @@ async def get_me(
     return user
 
 
-@router.patch("/avatar", response_model=UserResponse)
+@router.patch(
+    "/avatar",
+    response_model=UserResponse,
+    dependencies=[Depends(allowed_operation_avatar)],
+)
 async def update_avatar(
     file: UploadFile = File(),
     user: UserModel = Depends(auth_service.get_current_user),
