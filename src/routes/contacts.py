@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, HTTPException, Depends, status, Query, Path
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +22,22 @@ async def get_contacts(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(auth_service.get_current_user),
 ):
+    """
+    Get list of contacts.
+
+    Args:
+        name: Filter by name
+        surname: Filter by surname
+        email: Filter by email
+        skip: Skip first n records, default is 0
+        limit: Limit number of records, default is 10. Max is 1000
+        db: Async database session
+        user: Current user
+
+    Returns:
+        List of ContactResponse objects
+
+    """
     contact_service = ContactService(db)
     contacts = await contact_service.get_contacts(
         skip, limit, name, surname, email, user
@@ -38,6 +54,19 @@ async def get_upcomming_birthdays(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(auth_service.get_current_user),
 ):
+    """
+    Get list of contacts with upcoming birthdays.
+
+    Args:
+        skip: Skip first n records, default is 0
+        limit: Limit number of records, default is 10. Max is 1000
+        db: Async database session
+        user: Current user
+
+    Returns:
+        List of ContactResponse objects
+
+    """
     contact_service = ContactService(db)
     contacts = await contact_service.birthdays(skip, limit, user)
     return contacts
@@ -49,6 +78,21 @@ async def read_contact(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(auth_service.get_current_user),
 ):
+    """
+    Get a contact by id.
+
+    Args:
+        contact_id: Contact id
+        db: Async database session
+        user: Current user
+
+    Returns:
+        ContactResponse object
+
+    Raises:
+        HTTPException: Contact not found
+
+    """
     contact_service = ContactService(db)
     contact = await contact_service.get_contact(contact_id, user)
     if contact is None:
@@ -64,6 +108,21 @@ async def create_contact(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(auth_service.get_current_user),
 ):
+    """
+    Create a new contact.
+
+    Args:
+        body (ContactBase): Contact details
+        db (AsyncSession): Async database session
+        user (User): Current user
+
+    Returns:
+        ContactResponse object
+
+    Raises:
+        HTTPException: Email in use
+
+    """
     contact_service = ContactService(db)
     contact = await contact_service.create_contact(body, user)
     if contact is None:
@@ -78,6 +137,22 @@ async def update_contact(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(auth_service.get_current_user),
 ):
+    """
+    Update a contact by id.
+
+    Args:
+        contact_id: Contact id
+        body (ContactUpdate): Contact details to update
+        db (AsyncSession): Async database session
+        user (User): Current user
+
+    Returns:
+        ContactResponse object
+
+    Raises:
+        HTTPException: Contact not found
+
+    """
     contact_service = ContactService(db)
     contact = await contact_service.update_contact(contact_id, body, user)
     if contact is None:
@@ -93,6 +168,18 @@ async def delete_contact(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(auth_service.get_current_user),
 ):
+    """
+    Delete a contact by id.
+
+    Args:
+        contact_id: Contact id
+        db (AsyncSession): Async database session
+        user (User): Current user
+
+    Raises:
+        HTTPException: Contact not found
+
+    """
     contact_service = ContactService(db)
     contact = await contact_service.delete_contact(contact_id, user)
     if contact is None:

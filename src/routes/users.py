@@ -28,6 +28,12 @@ allowed_operation_avatar = RoleAccess([UserRole.ADMIN])
 async def get_me(
     request: Request, user: UserModel = Depends(auth_service.get_current_user)
 ):
+    """
+    Get current user.
+
+    This endpoint returns the current user without password.
+    Rate limit: 10 requests per minute.
+    """
     return user
 
 
@@ -41,6 +47,13 @@ async def update_avatar(
     user: UserModel = Depends(auth_service.get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Update the avatar of the current user.
+
+    This endpoint updates the avatar of the current user.
+    Only the administrator is allowed to update the avatar.
+    The avatar is uploaded to Cloudinary.
+    """
     avatar_url = UploadFileService(
         settings.CLOUDINARY_NAME,
         settings.CLOUDINARY_API_KEY,

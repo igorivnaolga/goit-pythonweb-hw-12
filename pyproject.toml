@@ -37,6 +37,7 @@ logging = "^0.4.9.6"
 slowapi = "^0.1.9"
 cloudinary = "^1.44.0"
 redis = "^6.2.0"
+sphinx = "^8.2.3"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -45,6 +46,7 @@ pytest = "^8.3.5"
 coverage = "^7.7.1"
 testcontainers = "^4.9.2"
 anyio = "^4.9.0"
+sphinx = "^8.2.3"
 
 
 [tool.ruff]

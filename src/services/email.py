@@ -2,7 +2,6 @@ from pathlib import Path
 import traceback
 
 from fastapi_mail import ConnectionConfig, MessageSchema, MessageType, FastMail
-from fastapi_mail.errors import ConnectionErrors
 
 from src.conf.config import settings
 from src.services.auth import auth_service
@@ -23,6 +22,16 @@ conf = ConnectionConfig(
 
 
 async def send_email(email: str, username: str, host: str, param: bool = False):
+    """
+    Sends an email to a user with a link to confirm their email.
+
+    Args:
+        email (str): The email address of the user.
+        username (str): The username of the user.
+        host (str): The host URL of the application.
+        param (bool, optional): Whether to include a parameter in the URL. Defaults to False.
+
+    """
     try:
         token_verification = auth_service.create_email_token({"sub": email})
         message = MessageSchema(
