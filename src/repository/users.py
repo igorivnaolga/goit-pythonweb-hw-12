@@ -65,6 +65,14 @@ class UserRepository:
             User | None: The created user object, or None if a user with the same email or username already exists.
 
         """
+        existing_user_email = await self.get_user_by_email(body.email)
+        if existing_user_email:
+            return None
+
+        existing_user_name = await self.get_user_by_name(body.username)
+        if existing_user_name:
+            return None
+
         user = User(
             **body.model_dump(exclude_unset=True, exclude={"password"}),
             password=body.password,
@@ -89,6 +97,8 @@ class UserRepository:
         user = await self.get_user_by_email(user_email)
         user.confirmed_email = True
         await self.db.commit()
+        await self.db.refresh(user)
+        return user
 
     async def update_avatar(self: Self, email: str, url: str) -> UserResponse:
         """
