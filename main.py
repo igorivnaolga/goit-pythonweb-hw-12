@@ -8,8 +8,6 @@ from src.routes import contacts, utils, auth, users
 
 
 app = FastAPI()
-
-app = FastAPI()
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,

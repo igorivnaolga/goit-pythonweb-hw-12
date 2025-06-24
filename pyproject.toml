@@ -38,6 +38,7 @@ slowapi = "^0.1.9"
 cloudinary = "^1.44.0"
 redis = "^6.2.0"
 sphinx = "^8.2.3"
+aiosqlite = "^0.21.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -48,6 +49,8 @@ testcontainers = "^4.9.2"
 anyio = "^4.9.0"
 sphinx = "^8.2.3"
 pytest-asyncio = "^1.0.0"
+factory-boy = "^3.3.3"
+fakeredis = "^2.30.1"
 
 
 [tool.pytest.ini_options]

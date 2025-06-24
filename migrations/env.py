@@ -3,7 +3,7 @@ from logging.config import fileConfig
 
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import pool, create_engine
 
 from alembic import context
 
@@ -83,6 +83,10 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    url = context.get_x_argument(as_dictionary=True).get("sqlalchemy.url")
+    if url is None:
+        url = config.get_main_option("sqlalchemy.url")
+
     asyncio.run(run_async_migrations())
 
 

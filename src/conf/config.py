@@ -1,9 +1,11 @@
 from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 from typing import Self
+from functools import lru_cache
 
 
 class Settings(BaseSettings):
+    # SECRET_KEY: str
     # DB
     POSTGRES_DB: str
     POSTGRES_USER: str
@@ -46,6 +48,11 @@ class Settings(BaseSettings):
         :rtype: str
         """
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()
 
 
 settings = Settings()

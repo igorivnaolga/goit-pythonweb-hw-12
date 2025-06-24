@@ -3,10 +3,10 @@ import pickle
 from typing import Self
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.conf.config import settings
 from src.services.users import UserService
 from src.database.db import get_db
@@ -16,7 +16,6 @@ from src.conf.config import settings
 
 
 class Auth:
-    ALGORITHM = settings.JWT_ALGORITHM
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -62,14 +61,63 @@ class Auth:
 
         """
         to_encode = data.copy()
-        expire = datetime.utcnow() + timedelta(minutes=expires_delta)
+        expire = datetime.now(timezone.utc) + timedelta(hours=1)
+        to_encode.update({"exp": expire})
+        encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.JWT_ALGORITHM)
+        return encoded_jwt
+
+    def create_refresh_token(
+        self,
+        data: dict,
+    ):
+        """
+        Creates a JWT refresh token for update access token.
+
+        Args:
+            data (dict): The payload data to include in the token.
+
+        Returns:
+            str: The encoded JWT access token.
+
+        """
+        to_encode = data.copy()
+        expire = datetime.now(timezone.utc) + timedelta(days=15)
         to_encode.update(
-            {"iat": datetime.utcnow(), "exp": expire, "scope": "access_token"}
+            {
+                "iat": datetime.now(timezone.utc),
+                "exp": expire,
+                "scope": "refresh_token",
+            }
         )
         encoded_access_token = jwt.encode(
-            to_encode, settings.JWT_SECRET, algorithm=self.ALGORITHM
+            to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM
         )
         return encoded_access_token
+
+    async def verify_refresh_token(self, refresh_token: str, db: AsyncSession):
+        """
+        Verifies the validity of a JWT refresh token.
+
+        Args:
+            token (str): The JWT refresh token to verify.
+
+        Returns:
+            bool: True if the token is valid, False otherwise.
+
+        """
+        try:
+            payload = jwt.decode(
+                refresh_token, settings.JWT_SECRET, algorithms=settings.JWT_ALGORITHM
+            )
+            username: str = payload.get("sub")
+            token_type: str = payload.get("scope")
+            if username is None or token_type != "refresh_token":
+                return None
+            user_service = UserService(db)
+            user = await user_service.get_user_by_name(username)
+            return user
+        except JWTError:
+            return None
 
     def create_email_token(self, data: dict):
         """
@@ -83,15 +131,15 @@ class Auth:
 
         """
         to_encode = data.copy()
-        expire = datetime.utcnow() + timedelta(hours=1)
+        expire = datetime.now(timezone.utc) + timedelta(hours=1)
         to_encode.update(
-            {"iat": datetime.utcnow(), "exp": expire, "scope": "email_token"}
+            {"iat": datetime.now(timezone.utc), "exp": expire, "scope": "email_token"}
         )
-        token = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=self.ALGORITHM)
+        token = jwt.encode(to_encode, settings.JWT_SECRET, settings.JWT_ALGORITHM)
         return token
 
     async def get_current_user(
-        self, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+        self, token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
     ):
         """
         Retrieves the current user from the database or cache using a JWT access token.
@@ -121,9 +169,7 @@ class Auth:
 
         try:
             # Decode JWT
-            payload = jwt.decode(
-                token, settings.JWT_SECRET, algorithms=[self.ALGORITHM]
-            )
+            payload = jwt.decode(token, settings.JWT_SECRET, settings.JWT_ALGORITHM)
             if payload.get("scope") == "access_token":
                 email = payload.get("sub")
                 if email is None:
@@ -167,9 +213,7 @@ class Auth:
 
         """
         try:
-            payload = jwt.decode(
-                token, settings.JWT_SECRET, algorithms=[self.ALGORITHM]
-            )
+            payload = jwt.decode(token, settings.JWT_SECRET, settings.JWT_ALGORITHM)
             if payload["scope"] == "email_token":
                 email = payload["sub"]
                 return email
