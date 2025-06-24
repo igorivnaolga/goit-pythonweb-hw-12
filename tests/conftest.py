@@ -5,7 +5,6 @@ from urllib.parse import urlparse, urlunparse
 import pytest_asyncio
 from pydantic import computed_field
 from pydantic_settings import SettingsConfigDict
-import pytest
 
 from src.conf.config import Settings
 
@@ -75,17 +74,6 @@ async def anyio_backend() -> str:
 async def test_settings() -> TestSettings:
     """Settings for tests."""
     return TestSettings()
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _debug_settings(test_settings: TestSettings):
-    print("🧪 DEBUG SETTINGS:")
-    print("   USER:", test_settings.POSTGRES_USER)
-    print("   PASS:", test_settings.POSTGRES_PASSWORD)
-    print("   DB URI:", test_settings.DATABASE_URI)
-
-
-from pathlib import Path
 
 
 print("I am in ", Path(__file__))
