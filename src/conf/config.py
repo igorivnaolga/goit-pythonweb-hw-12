@@ -5,7 +5,7 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # SECRET_KEY: str
+    SECRET_KEY: str
     # DB
     POSTGRES_DB: str
     POSTGRES_USER: str
@@ -55,4 +55,4 @@ def get_settings() -> Settings:
     return Settings()
 
 
-settings = Settings()
+settings = get_settings()

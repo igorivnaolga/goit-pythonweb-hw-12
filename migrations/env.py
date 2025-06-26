@@ -24,8 +24,8 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
-config.set_main_option("sqlalchemy.url", app_config.database_url)
-
+# config.set_main_option("sqlalchemy.url", app_config.database_url)
+url = context.get_x_argument(as_dictionary=True).get("sqlalchemy.url")
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -63,13 +63,25 @@ def run_migrations(connection: Connection):
         context.run_migrations()
 
 
-async def run_async_migrations():
+# async def run_async_migrations():
+#     connectable = async_engine_from_config(
+#         config.get_section(config.config_ini_section, {}),
+#         prefix="sqlalchemy.",
+#         poolclass=pool.NullPool,
+#     )
+
+#     async with connectable.connect() as connection:
+#         await connection.run_sync(run_migrations)
+
+#     await connectable.dispose()
+
+
+async def run_async_migrations(url: str):
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        {"sqlalchemy.url": url},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
-
     async with connectable.connect() as connection:
         await connection.run_sync(run_migrations)
 
@@ -87,7 +99,7 @@ def run_migrations_online() -> None:
     if url is None:
         url = config.get_main_option("sqlalchemy.url")
 
-    asyncio.run(run_async_migrations())
+    asyncio.run(run_async_migrations(url))
 
 
 if context.is_offline_mode():

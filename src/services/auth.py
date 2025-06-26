@@ -109,12 +109,12 @@ class Auth:
             payload = jwt.decode(
                 refresh_token, settings.JWT_SECRET, algorithms=settings.JWT_ALGORITHM
             )
-            username: str = payload.get("sub")
+            email: str = payload.get("sub")
             token_type: str = payload.get("scope")
-            if username is None or token_type != "refresh_token":
+            if email is None or token_type != "refresh_token":
                 return None
             user_service = UserService(db)
-            user = await user_service.get_user_by_name(username)
+            user = await user_service.get_user_by_email(email)
             return user
         except JWTError:
             return None

@@ -113,11 +113,12 @@ async def login(
         )
     if not user.confirmed_email:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not confirmed"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email not confirmed",
         )
 
     access_token = await auth_service.create_access_token(data={"sub": user.email})
-    refresh_token = auth_service.create_refresh_token(data={"sub": user.username})
+    refresh_token = auth_service.create_refresh_token(data={"sub": user.email})
     user.refresh_token = refresh_token
     await db.commit()
     return {
@@ -318,8 +319,8 @@ async def refresh_token(
             detail="Invalid or expired refresh token",
         )
     # Generate JWT
-    new_access_token = auth_service.create_access_token(data={"sub": user.email})
-    new_refresh_token = auth_service.create_refresh_token(data={"sub": user.username})
+    new_access_token = await auth_service.create_access_token(data={"sub": user.email})
+    new_refresh_token = auth_service.create_refresh_token(data={"sub": user.email})
     user.refresh_token = new_refresh_token
     await db.commit()
     return {

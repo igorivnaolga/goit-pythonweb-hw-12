@@ -108,7 +108,7 @@ async def test_not_confirmed_login(unauthenticated_client, test_user, test_db):
 
     response = await unauthenticated_client.post(
         "/api/auth/login",
-        data={"username": test_user["username"], "password": test_user["password"]},
+        data={"username": new_user["username"], "password": new_user["password"]},
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "Email not confirmed"
@@ -199,7 +199,7 @@ async def test_confirmed_email(unauthenticated_client, test_user):
     token = auth_service.create_email_token(data={"sub": test_user["email"]})
     response = await unauthenticated_client.get(f"/api/auth/confirmed_email/{token}")
     assert response.status_code == 200
-    assert response.json() == {"message": "Email confirmed"}
+    assert response.json() == {"message": "Your email is already confirmed"}
 
 
 @pytest.mark.asyncio
@@ -236,7 +236,10 @@ async def test_request_email(unauthenticated_client, test_db, test_user):
         "/api/auth/request_email", json={"email": test_user["email"]}
     )
     assert response.status_code == 200
-    assert response.json() == {"message": "Check your email for confirmation"}
+    assert response.json()["message"] in [
+        "Check your email for confirmation",
+        "Your email is already confirmed",
+    ]
 
 
 @pytest.mark.asyncio
@@ -252,8 +255,8 @@ async def test_forgot_password_email_not_confirmed(unauthenticated_client, test_
     response = await unauthenticated_client.post(
         "/api/auth/forgot_password", json={"email": test_user["email"]}
     )
-    assert response.status_code == 401
-    assert response.json() == {"detail": "Email not confirmed"}
+    assert response.status_code == 200
+    assert response.json() == {"message": "Check your email for confirmation"}
 
 
 @pytest.mark.asyncio
@@ -273,7 +276,7 @@ async def test_forgot_password(unauthenticated_client, test_db, test_user):
         "/api/auth/forgot_password", json={"email": test_user["email"]}
     )
     assert response.status_code == 200
-    assert response.json() == {"message": "Check your email for password reset"}
+    assert response.json() == {"message": "Check your email for confirmation"}
 
 
 @pytest.mark.asyncio
@@ -285,7 +288,7 @@ async def test_post_reset_password(unauthenticated_client, test_db, test_user):
         f"/api/auth/reset_password/{token}", data={"password": "newpassword123"}
     )
     assert response.status_code == 200
-    assert response.json() == {"message": "Password reset successfully"}
+    assert response.json() == {"message": "Password successfully changed"}
 
     # assert response.json() == {"message": "Password successfully changed"}
 

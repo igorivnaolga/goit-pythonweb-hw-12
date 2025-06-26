@@ -59,10 +59,10 @@ class TestSettings(Settings):
     @property
     def get_template_postgres_uri(self) -> str:
         """Build database URI for DB template."""
-        parsed = urlparse(self.DATABASE_URI)
-        netloc = f"{parsed.username}:{parsed.password}@{parsed.hostname}:{parsed.port}"
+        scheme = "postgresql+asyncpg"
+        netloc = f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}"
         path = f"/{self.POSTGRES_TEMPLATE_DB}"
-        return urlunparse((parsed.scheme, netloc, path, "", "", ""))
+        return urlunparse((scheme, netloc, path, "", "", ""))
 
 
 @pytest_asyncio.fixture(scope="session")
