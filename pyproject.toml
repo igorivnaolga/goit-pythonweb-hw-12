@@ -39,6 +39,7 @@ cloudinary = "^1.44.0"
 redis = "^6.2.0"
 sphinx = "^8.2.3"
 aiosqlite = "^0.21.0"
+testcontainers = {extras = ["redis"], version = "^4.10.0"}
 
 
 [tool.poetry.group.dev.dependencies]

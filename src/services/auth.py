@@ -12,14 +12,28 @@ from src.services.users import UserService
 from src.database.db import get_db
 from src.database.models import User
 from src.database.models import UserRole
-from src.conf.config import settings
+from src.conf.config import get_settings
+from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends
+from redis import Redis
+
+
+def get_redis() -> Redis:
+    settings = get_settings()
+    return Redis(
+        host=settings.REDIS_HOST,
+        port=int(settings.REDIS_PORT),
+        db=0,
+        decode_responses=True,
+    )
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 class Auth:
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-    r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
     def verify_password(self: Self, plain_password: str, hashed_password: str):
         """
@@ -63,7 +77,7 @@ class Auth:
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + timedelta(hours=1)
         to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, settings.JWT_ALGORITHM)
+        encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, settings.JWT_ALGORITHM)
         return encoded_jwt
 
     def create_refresh_token(
@@ -139,7 +153,10 @@ class Auth:
         return token
 
     async def get_current_user(
-        self, token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
+        self,
+        token: str = Depends(oauth2_scheme),
+        db: AsyncSession = Depends(get_db),
+        redis_client: Redis = Depends(get_redis),
     ):
         """
         Retrieves the current user from the database or cache using a JWT access token.
@@ -169,26 +186,29 @@ class Auth:
 
         try:
             # Decode JWT
-            payload = jwt.decode(token, settings.JWT_SECRET, settings.JWT_ALGORITHM)
-            if payload.get("scope") == "access_token":
-                email = payload.get("sub")
-                if email is None:
-                    raise credentials_exception
-            else:
+            payload = jwt.decode(
+                token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
+            )
+            if payload.get("scope") != "access_token":
+                raise credentials_exception
+            email = payload.get("sub")
+            if email is None:
                 raise credentials_exception
         except JWTError:
             raise credentials_exception
 
         user_service = UserService(db)
-        user = self.r.get(f"user:{email}")
-        if user is None:
+
+        # Try to get user from cache
+        cached_user = redis_client.get(f"user:{email}")
+        if cached_user is None:
             user = await user_service.get_user_by_email(email)
             if user is None:
                 raise credentials_exception
-            self.r.set(f"user:{email}", pickle.dumps(user))
-            self.r.expire(f"user:{email}", 900)
+            redis_client.set(f"user:{email}", pickle.dumps(user))
+            redis_client.expire(f"user:{email}", 900)
         else:
-            user = pickle.loads(user)
+            user = pickle.loads(cached_user)
 
         if user is None:
             raise credentials_exception

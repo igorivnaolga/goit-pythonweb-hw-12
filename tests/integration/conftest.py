@@ -24,7 +24,7 @@ from testcontainers.redis import RedisContainer  # type: ignore[import-untyped]
 from src.conf.config import get_settings
 from src.database.db import DatabaseSessionManager, get_db
 from src.database.models import User
-from src.services.auth import auth_service
+from src.services.auth import auth_service, get_redis
 from tests.conftest import TestSettings
 from tests.factories import UserFactory
 from src.schemas.users import UserCreate
@@ -141,15 +141,49 @@ async def test_db(_copy_database, test_settings: TestSettings):
         yield session
 
 
+@pytest.fixture(scope="session")
+def redis_container() -> RedisContainer:
+    container = RedisContainer("redis:7.2.1-alpine")
+    container.start()
+    yield container
+    container.stop()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _init_test_settings_with_redis(
+    redis_container, test_settings: TestSettings
+) -> None:
+    host = redis_container.get_container_host_ip()
+    port = redis_container.get_exposed_port(6379)
+    test_settings.REDIS_HOST = host
+    test_settings.REDIS_PORT = port
+    test_settings.REDIS_URI = f"redis://{host}:{port}/0"
+
+
 @pytest_asyncio.fixture(scope="function")
 async def test_cache(test_settings: TestSettings):
-    redis_client = Redis.from_url(url=test_settings.REDIS_URI, decode_responses=True)
+    redis_client = Redis(
+        host=test_settings.REDIS_HOST,
+        port=int(test_settings.REDIS_PORT),
+        db=0,
+        decode_responses=True,
+    )
     yield redis_client
-    await redis_client.close()
+    redis_client.close()
 
 
 @pytest.fixture(scope="function")
-def test_app(_copy_database, test_db, test_settings: TestSettings) -> FastAPI:
+def override_redis(test_cache: Redis):
+    def _override_redis():
+        return test_cache
+
+    return _override_redis
+
+
+@pytest.fixture(scope="function")
+def test_app(
+    _copy_database, test_db, test_settings: TestSettings, override_redis
+) -> FastAPI:
     from main import app as fastapi_app
 
     def override_get_settings() -> TestSettings:
@@ -160,6 +194,7 @@ def test_app(_copy_database, test_db, test_settings: TestSettings) -> FastAPI:
 
     fastapi_app.dependency_overrides[get_settings] = override_get_settings
     fastapi_app.dependency_overrides[get_db] = override_get_db
+    fastapi_app.dependency_overrides[get_redis] = override_redis
     return fastapi_app
 
 
@@ -204,7 +239,7 @@ async def test_client(test_app, test_db, test_user):
     await confirm_user(test_db, test_user["email"])
 
     access_token = await auth_service.create_access_token(
-        {"sub": test_user["email"]}, 30
+        {"sub": test_user["email"], "scope": "access_token"}, 30
     )
 
     headers = {"Authorization": f"Bearer {access_token}"}
