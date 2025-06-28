@@ -1,15 +1,16 @@
 #!/bin/sh
 # Wait for postgres to be ready (optional, but useful)
-until pg_isready -h postgres_db -p 5432; do
-  echo "Waiting for postgres..."
-  sleep 2
+echo "Waiting for PostgreSQL..."
+while ! nc -z postgres_db 5432; do
+  sleep 1
 done
+echo "Postgres is up!"
 
 # Run Alembic migrations
 
-# rm app/migrations/versions/*.py
-alembic revision --autogenerate -m "Init"
+echo "📦 Running Alembic migrations..."
 alembic upgrade head 
 
 # Start FastAPI with uvicorn
+echo "🚀 Starting FastAPI..."
 uvicorn main:app --host 0.0.0.0 --port 3000
