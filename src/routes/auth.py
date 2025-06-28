@@ -159,7 +159,7 @@ async def confirmed_email(token: str, db: AsyncSession = Depends(get_db)):
     if user.confirmed_email:
         return {"message": "Your email is already confirmed"}
     await user_service.confirmed_email(email)
-    return {"message": "Email confirmed"}
+    return {"message": "Your email is already confirmed"}
 
 
 @router.post("/request_email")
@@ -226,17 +226,12 @@ async def forgot_password(
     """
     user_service = UserService(db)
     user = await user_service.get_user_by_email(body.email)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error"
+
+    if user and user.confirmed_email:
+        background_task.add_task(
+            send_email, user.email, user.username, str(request.base_url), True
         )
-    if not user.confirmed_email:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not confirmed"
-        )
-    background_task.add_task(
-        send_email, user.email, user.username, str(request.base_url), True
-    )
+
     return {"message": "Check your email for confirmation"}
 
 
